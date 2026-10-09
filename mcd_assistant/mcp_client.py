@@ -133,6 +133,10 @@ class McpClient:
         if result is None:
             return None
 
+        structured = getattr(result, "structured_content", None)
+        if structured is not None:
+            return structured
+
         # MCP results have .content which is a list of content blocks
         content_list = []
         if hasattr(result, "content"):
@@ -170,7 +174,7 @@ class McpClient:
         result = await self._session.call_tool(name, arguments or {})
 
         # Check for errors in result
-        if hasattr(result, "isError") and result.isError:
+        if getattr(result, "is_error", False) or getattr(result, "isError", False):
             err_text = self._parse_result(result)
             if "401" in str(err_text):
                 raise McpAuthError(f"Authentication failed: {err_text}")
