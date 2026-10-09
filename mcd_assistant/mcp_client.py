@@ -9,7 +9,6 @@ import time
 from contextlib import AsyncExitStack
 from typing import Any, Optional
 
-import httpx
 
 from .config import Config
 from .models import UserProfile

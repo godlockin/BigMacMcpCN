@@ -33,8 +33,17 @@ class Config:
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "config.json",
             )
-        with open(config_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = {}
+        if Path(config_path).exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError("config must be a JSON object")
+        token = data.get("mcp_token", "")
+        if not token or token == "${MCD_MCP_TOKEN}":
+            token = os.environ.get("MCD_MCP_TOKEN", "")
+        if not isinstance(token, str):
+            raise ValueError("mcp_token must be a string")
 
         loc_data = data.get("default_location", {})
         location = LocationConfig(
@@ -49,11 +58,10 @@ class Config:
         data_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
         )
-        os.makedirs(data_dir, exist_ok=True)
 
         return cls(
             mcp_server_url=data.get("mcp_server_url", "https://mcp.mcd.cn"),
-            mcp_token=data.get("mcp_token", ""),
+            mcp_token=token,
             monitor_interval_minutes=data.get("monitor_interval_minutes", 240),
             auto_mode=data.get("auto_mode", False),
             notification_method=data.get("notification_method", "console"),

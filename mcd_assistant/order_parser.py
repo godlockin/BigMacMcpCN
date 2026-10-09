@@ -174,14 +174,15 @@ class OrderParser:
                 match = re.search(pattern, text, re.IGNORECASE)
                 if match:
                     grp1 = match.group(1) if match.groups() else None
-                    count = int(grp1) if grp1 else 1
+                    count = int(grp1) if grp1 else (total if constraint_type == "no-spicy" else 1)
                     constraints.append(f"{constraint_type}:{count}")
+                    break
 
         # Also check for simple mentions without counts
         if "素食" in text and not any("vegetarian" in c for c in constraints):
             constraints.append("vegetarian:1")
         if ("不辣" in text or "不要辣" in text or "免辣" in text) and not any("no-spicy" in c for c in constraints):
-            constraints.append("no-spicy:1")
+            constraints.append(f"no-spicy:{total}")
 
         return constraints
 

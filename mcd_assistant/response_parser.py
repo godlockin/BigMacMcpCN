@@ -23,6 +23,7 @@ class ParsedMenuItem:
     tags: list = field(default_factory=list)
     calories: int = 0
     raw: dict = field(default_factory=dict)
+    verified_dietary_tags: tuple[str, ...] = ()
 
 
 @dataclass
@@ -37,6 +38,9 @@ class ParsedCoupon:
     tags: list = field(default_factory=list)
     source: str = ""  # my-coupons, available, store
     raw: str = ""
+    verified_product_codes: tuple[str, ...] = ()
+    verified_usable: bool = False
+    max_quantity: int = 1
 
 
 @dataclass
@@ -71,6 +75,8 @@ class ParsedMallProduct:
     cash_price: float = 0.0
     description: str = ""
     raw: dict = field(default_factory=dict)
+    verified_product_codes: tuple[str, ...] = ()
+    verified_redeemable: bool = False
 
 
 class ResponseParser:

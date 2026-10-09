@@ -27,3 +27,5 @@ data/*.db
 
 # Logs
 *.log
+.pytest_cache/
+decision-result.json

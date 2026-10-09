@@ -9,7 +9,7 @@ deal with explicit gap analysis for user review.
 """
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 from .config import Config
@@ -123,7 +123,8 @@ class Deal:
                 lines.append(f"  ! {g}")
             lines.append("")
 
-        lines.append(f"匹配度: {self.confidence:.0%}")
+        lines.append(f"规则检查通过比例: {self.confidence:.0%}（非下单成功率）")
+        lines.append("价格为快照估算，需官方整单核价；不推断未知饮食属性或优惠适用性。")
         if self.reasoning:
             lines.append(f"方案说明: {self.reasoning}")
 
@@ -157,6 +158,8 @@ class Deal:
             "reasoning": self.reasoning,
             "store_id": self.store_id,
             "is_complete": self.is_complete,
+            "price_status": "estimate_requires_official_quote",
+            "validation_scope": "legacy_group_heuristic_not_personal_constraint_solver",
         }
 
 
@@ -353,7 +356,7 @@ class DealComposer:
                 categorized["chicken"].append(item)
                 assigned = True
 
-            if self._matches_any(name, self.VEGETARIAN_KEYWORDS):
+            if "vegetarian" in item.verified_dietary_tags:
                 categorized["vegetarian"].append(item)
                 assigned = True
 
@@ -411,7 +414,8 @@ class DealComposer:
         # Handle each constraint group
         for ctype, count in constraint_groups.items():
             category_key = self._constraint_to_category(ctype)
-            available = categorized.get(category_key, [])
+            available = [item for item in categorized.get(category_key, [])
+                         if self._item_matches_constraint(item, ctype)]
 
             if not available:
                 # Gap: no items found for this constraint
@@ -427,13 +431,13 @@ class DealComposer:
             # Try to find combos that match this constraint first
             matching_combos = [
                 c for c in categorized["combos"]
-                if self._combo_matches_constraint(c.name, ctype)
+                if self._item_matches_constraint(c, ctype)
             ]
 
             for i in range(count):
                 if matching_combos:
                     # Use a combo (better value)
-                    combo = matching_combos[i % len(matching_combos)]
+                    combo = matching_combos[0]
                     components.append(DealComponent(
                         component_type="combo",
                         item_name=combo.name,
@@ -447,7 +451,7 @@ class DealComposer:
                     ))
                 elif available:
                     # Use a single item
-                    item = available[i % len(available)]
+                    item = available[0]
                     components.append(DealComponent(
                         component_type="single",
                         item_name=item.name,
@@ -484,7 +488,7 @@ class DealComposer:
                     ))
             else:
                 for i in range(remaining):
-                    item = pool[i % len(pool)]
+                    item = pool[0]
                     ctype = "combo" if item in categorized.get("combos", []) else "single"
                     components.append(DealComponent(
                         component_type=ctype,
@@ -508,7 +512,8 @@ class DealComposer:
     ) -> list[DealComponent]:
         """Apply best-matching coupons to components."""
         # Merge all available coupons
-        all_coupons = data["my_coupons"] + data["available_coupons"] + data["store_coupons"]
+        components = [replace(c) for c in components]
+        all_coupons = data["my_coupons"] + data["store_coupons"]
 
         if not all_coupons:
             return components
@@ -523,7 +528,7 @@ class DealComposer:
             best_savings = 0.0
 
             for coupon in all_coupons:
-                if coupon.title in used_coupon_titles:
+                if not coupon.coupon_id or coupon.coupon_id in used_coupon_titles:
                     continue
 
                 # Check if coupon matches this item
@@ -538,7 +543,7 @@ class DealComposer:
                 comp.coupon_applied = best_coupon.title
                 comp.total_price = best_coupon.discount_price * comp.quantity
                 comp.unit_price = best_coupon.discount_price
-                used_coupon_titles.add(best_coupon.title)
+                used_coupon_titles.add(best_coupon.coupon_id)
 
         return components
 
@@ -549,6 +554,7 @@ class DealComposer:
         spec: OrderSpec,
     ) -> list[DealComponent]:
         """Consider using points to get free items."""
+        components = [replace(c) for c in components]
         account = data.get("account")
         mall_products = data.get("mall_products", [])
 
@@ -558,7 +564,8 @@ class DealComposer:
         # Find affordable mall products
         affordable = [
             p for p in mall_products
-            if p.points_cost > 0 and p.points_cost <= account.available_points
+            if p.verified_redeemable and p.cash_price == 0
+            and p.points_cost > 0 and p.points_cost <= account.available_points
         ]
 
         if not affordable:
@@ -585,7 +592,7 @@ class DealComposer:
             for product in affordable:
                 if product.points_cost <= remaining_points:
                     # Check if this product matches the component's purpose
-                    if self._mall_matches_component(product, comp):
+                    if comp.quantity == 1 and self._mall_matches_component(product, comp):
                         orig_price = comp.original_unit_price
                         comp.points_used = product.points_cost
                         comp.is_free = True
@@ -593,19 +600,6 @@ class DealComposer:
                         comp.unit_price = 0.0
                         comp.notes = f"积分兑换 (原价¥{orig_price:.2f})"
                         remaining_points -= product.points_cost
-                        points_items.append(DealComponent(
-                            component_type="points-redemption",
-                            item_name=product.name,
-                            product_code=product.product_id,
-                            quantity=1,
-                            unit_price=product.cash_price,
-                            total_price=0.0,
-                            original_unit_price=product.cash_price,
-                            original_total_price=product.cash_price,
-                            assigned_to=comp.assigned_to,
-                            points_used=product.points_cost,
-                            is_free=True,
-                        ))
                         break
 
         # Add points items to components
@@ -622,9 +616,9 @@ class DealComposer:
     ) -> Deal:
         """Score the deal and generate the final Deal object."""
         # Separate components by type
-        combo_items = [c for c in components if c.component_type == "combo"]
-        single_items = [c for c in components if c.component_type == "single"]
-        points_items = [c for c in components if c.component_type == "points-redemption"]
+        combo_items = [c for c in components if c.component_type == "combo" and not c.is_free]
+        single_items = [c for c in components if c.component_type == "single" and not c.is_free]
+        points_items = [c for c in components if c.is_free and c.points_used > 0]
         gap_items = [c for c in components if c.component_type == "gap"]
 
         # Clean price calculation using preserved original prices
@@ -667,23 +661,29 @@ class DealComposer:
         constraint_satisfaction = {}
         constraint_groups = self._parse_constraint_groups(spec)
         for ctype, required in constraint_groups.items():
-            satisfied = len([
-                c for c in components
+            satisfied = sum(
+                c.quantity for c in components
                 if c.assigned_to == ctype and c.component_type in ("combo", "single")
-            ])
+            )
             constraint_satisfaction[f"{ctype}"] = f"{satisfied}/{required}"
 
         # Also check specific items
         if spec.items:
             for item in spec.items:
-                matched = len([
-                    c for c in components
+                matched = sum(
+                    c.quantity for c in components
                     if item.name in c.item_name and c.component_type in ("combo", "single")
-                ])
+                )
                 constraint_satisfaction[f"item:{item.name}"] = f"{matched}/{item.quantity}"
 
         # Gaps - only actual problems, not informational items
         gaps = [c.item_name for c in gap_items]
+        for key, ratio in constraint_satisfaction.items():
+            got, needed = map(int, ratio.split("/"))
+            if got < needed:
+                gaps.append(f"未满足 {key}: {ratio}")
+        if sum(constraint_groups.values()) > spec.total_people:
+            gaps.append("分组人数超过总人数；交叉需求请使用每人明细决策工具。")
 
         # Budget info (not a gap unless over budget)
         budget_note = ""
@@ -694,7 +694,7 @@ class DealComposer:
                 budget_note = f"预算结余 ¥{spec.budget - final_price:.2f}"
 
         # People count check
-        allocated = len([c for c in components if c.component_type in ("combo", "single")])
+        allocated = sum(c.quantity for c in components if c.component_type in ("combo", "single"))
         if allocated < spec.total_people:
             gaps.append(f"人数缺口: 仅分配{allocated}人, 需求{spec.total_people}人")
 
@@ -830,7 +830,9 @@ class DealComposer:
         """Check if a combo matches a dietary constraint."""
         name_lower = combo_name.lower()
         if constraint.startswith("vegetarian"):
-            return not self._matches_any(name_lower, self.BURGER_KEYWORDS + self.CHICKEN_KEYWORDS)
+            return False  # A name cannot prove ingredients or dietary compatibility.
+        elif constraint.startswith("no-spicy") or constraint.startswith("extra-burger"):
+            return False
         elif constraint.startswith("extra-burger") or constraint.startswith("burger"):
             return self._matches_any(name_lower, self.BURGER_KEYWORDS)
         elif constraint.startswith("chicken"):
@@ -839,45 +841,21 @@ class DealComposer:
             return self._matches_any(name_lower, self.DRINK_KEYWORDS)
         return True
 
+    def _item_matches_constraint(self, item: ParsedMenuItem, constraint: str) -> bool:
+        if constraint in ("vegetarian", "no-spicy", "extra-burger"):
+            return constraint in item.verified_dietary_tags
+        return self._combo_matches_constraint(item.name, constraint)
+
     def _coupon_matches_item(self, coupon: ParsedCoupon, comp: DealComponent) -> bool:
         """Check if a coupon can be applied to a component."""
-        if not coupon.title:
-            return False
-        if coupon.discount_price <= 0:
-            return False
-
-        # Check if coupon title mentions the item
-        title = coupon.title.lower()
-        item_name = comp.item_name.lower()
-
-        # Direct match
-        if any(word in title for word in comp.item_name.split() if len(word) > 1):
-            return True
-
-        # Category match
-        if self._matches_any(title, self.BURGER_KEYWORDS) and self._matches_any(item_name, self.BURGER_KEYWORDS):
-            return True
-        if self._matches_any(title, self.CHICKEN_KEYWORDS) and self._matches_any(item_name, self.CHICKEN_KEYWORDS):
-            return True
-        if self._matches_any(title, self.DESSERT_KEYWORDS) and self._matches_any(item_name, self.DESSERT_KEYWORDS):
-            return True
-        if self._matches_any(title, self.DRINK_KEYWORDS) and self._matches_any(item_name, self.DRINK_KEYWORDS):
-            return True
-
-        # Generic coupons (任选, 全场, etc.)
-        if any(kw in title for kw in ["任选", "全场", "通用", "无门槛"]):
-            return True
-
-        return False
+        return bool(coupon.verified_usable and coupon.coupon_id and comp.product_code
+                    and comp.product_code in coupon.verified_product_codes
+                    and coupon.discount_price > 0 and comp.quantity <= coupon.max_quantity)
 
     def _mall_matches_component(self, product: ParsedMallProduct, comp: DealComponent) -> bool:
         """Check if a mall product can replace a component."""
-        if not product.name:
-            return False
-        # Simple matching
-        if any(word in product.name for word in comp.item_name.split() if len(word) > 1):
-            return True
-        return False
+        return bool(product.verified_redeemable and comp.product_code
+                    and comp.product_code in product.verified_product_codes)
 
     @staticmethod
     def _safe_float(val) -> float:

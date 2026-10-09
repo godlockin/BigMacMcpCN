@@ -16,6 +16,7 @@ from .mcp_client import McpClient
 from .recommender import Recommender
 from .order_parser import OrderParser
 from .deal_composer import DealComposer
+from .decision import solve
 
 
 class McAssistantServer:
@@ -43,15 +44,25 @@ class McAssistantServer:
         self.recommender = Recommender(self.client)
         self.parser = OrderParser(self.client)
         self.deal_composer = DealComposer(self.client, self.config)
-        self.server = Server("mcd-assistant")
         self._setup_handlers()
 
     def _setup_handlers(self):
         """Register MCP tool handlers."""
 
-        @self.server.list_tools()
         async def list_tools() -> list[types.Tool]:
             return [
+                types.Tool(
+                    name="mcd-decision-plan",
+                    description="团餐变更决策：输入规范化完整餐快照、每人候选、预算、旧方案及锁定者；最少影响人数重规划。纯本地、无账号操作；金额为待官方核价估算。数据格式见 examples/workshop.json。",
+                    inputSchema={"type": "object", "properties": {
+                        "snapshot": {"type": "object", "description": "source、captured_at、store_id、options、resources、points_budget"},
+                        "participants": {"type": "array", "items": {"type": "object"}},
+                        "budget_cents": {"type": "integer", "minimum": 0},
+                        "previous_assignments": {"type": "array", "items": {"type": "object"}},
+                        "locked_people": {"type": "array", "items": {"type": "string"}},
+                        "max_nodes": {"type": "integer", "minimum": 1, "maximum": 500000},
+                    }, "required": ["snapshot", "participants", "budget_cents"]},
+                ),
                 types.Tool(
                     name="mcd-dashboard",
                     description=(
@@ -310,25 +321,36 @@ class McAssistantServer:
                 ),
             ]
 
-        @self.server.call_tool()
-        async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
+        async def call_tool(name: str, arguments: dict) -> types.CallToolResult:
             """Handle tool calls."""
             try:
-                await self.client.ensure_connected()
+                if name != "mcd-decision-plan":
+                    await self.client.ensure_connected()
 
                 result = await self._dispatch(name, arguments)
                 text = json.dumps(result, ensure_ascii=False, indent=2) if not isinstance(result, str) else result
 
-                return [types.TextContent(type="text", text=text)]
+                return types.CallToolResult(content=[types.TextContent(type="text", text=text)])
 
             except Exception as e:
-                return [types.TextContent(
+                return types.CallToolResult(is_error=True, content=[types.TextContent(
                     type="text",
                     text=json.dumps({"error": str(e), "tool": name}, ensure_ascii=False),
-                )]
+                )])
+
+        async def on_list_tools(context: object, params: object) -> types.ListToolsResult:
+            return types.ListToolsResult(tools=await list_tools())
+
+        async def on_call_tool(context: object, params: types.CallToolRequestParams) -> types.CallToolResult:
+            return await call_tool(params.name, params.arguments or {})
+
+        self.server = Server("mcd-assistant", version="2.0.0",
+                             on_list_tools=on_list_tools, on_call_tool=on_call_tool)
 
     async def _dispatch(self, name: str, args: dict) -> Any:
         """Route tool call to the appropriate handler."""
+        if name == "mcd-decision-plan":
+            return solve(args)
         if name == "mcd-dashboard":
             return await self._tool_dashboard()
         elif name == "mcd-nearby-stores":

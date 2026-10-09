@@ -266,7 +266,7 @@ td {{ padding: 10px 12px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }}
         for c in components:
             coupon_cell = f'<span class="coupon-cell">{c.coupon_applied}</span>' if c.coupon_applied else '<span style="color:#ccc;">-</span>'
             points_cell = f'<span class="free-cell">{c.points_used} pts</span>' if c.points_used > 0 else '<span style="color:#ccc;">-</span>'
-            price_cell = '<span class="free-cell">免费</span>' if c.is_free else f'¥{c.total_price:.2f}'
+            price_cell = '<span class="free-cell">积分兑换</span>' if c.is_free else f'¥{c.total_price:.2f}'
 
             rows.append(f"""
             <tr>
@@ -340,8 +340,8 @@ td {{ padding: 10px 12px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }}
     @staticmethod
     def _confidence_label(confidence: float) -> str:
         if confidence >= 0.8:
-            return "高匹配度"
+            return "高规则通过率"
         elif confidence >= 0.5:
             return "部分匹配"
         else:
-            return "低匹配度"
+            return "低规则通过率"

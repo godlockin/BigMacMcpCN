@@ -1,5 +1,7 @@
 # WorkBuddy 开发上下文
 
+> 历史记录：以下为 v1 作者提供的开发摘要。2026-10-09 的 v2 团餐变更决策台由 Codex 升级，不属于本文件所述 WorkBuddy 开发过程；当前能力与验证以 README.md、MCP_INTEGRATION.md、VALIDATION.md 为准。
+
 本项目使用 WorkBuddy AI 进行开发。以下是开发过程中的关键对话上下文摘要，用于核验 WorkBuddy 联动活动奖励条件。
 
 ## 开发环境

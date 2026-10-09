@@ -1,0 +1,165 @@
+{
+  "snapshot": {
+    "source": "synthetic",
+    "captured_at": "2026-10-09T12:00:00+08:00",
+    "store_id": "DEMO-NOT-A-REAL-STORE",
+    "points_budget": 0,
+    "resources": {
+      "coupon-demo": 1
+    },
+    "options": [
+      {
+        "id": "classic",
+        "name": "经典演示餐",
+        "price_cents": 2000,
+        "items": [
+          "spicy-main",
+          "drink"
+        ],
+        "verified_tags": []
+      },
+      {
+        "id": "mild",
+        "name": "不辣演示餐",
+        "price_cents": 2200,
+        "items": [
+          "mild-main",
+          "drink"
+        ],
+        "verified_tags": [
+          "no-spicy"
+        ]
+      },
+      {
+        "id": "veg",
+        "name": "素食演示餐",
+        "price_cents": 2400,
+        "items": [
+          "veg-main",
+          "drink"
+        ],
+        "verified_tags": [
+          "vegetarian",
+          "no-spicy"
+        ]
+      },
+      {
+        "id": "coupon-classic",
+        "name": "经典演示餐（券）",
+        "price_cents": 1600,
+        "items": [
+          "spicy-main",
+          "drink"
+        ],
+        "verified_tags": [],
+        "resources": [
+          "coupon-demo"
+        ]
+      }
+    ]
+  },
+  "budget_cents": 23000,
+  "participants": [
+    {
+      "id": "p1",
+      "name": "同事01",
+      "allowed_options": [
+        "veg"
+      ],
+      "required_tags": [
+        "vegetarian"
+      ]
+    },
+    {
+      "id": "p2",
+      "name": "同事02",
+      "allowed_options": [
+        "veg"
+      ],
+      "required_tags": [
+        "vegetarian"
+      ]
+    },
+    {
+      "id": "p3",
+      "name": "同事03",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    },
+    {
+      "id": "p4",
+      "name": "同事04",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    },
+    {
+      "id": "p5",
+      "name": "同事05",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    },
+    {
+      "id": "p6",
+      "name": "同事06",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    },
+    {
+      "id": "p7",
+      "name": "同事07",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    },
+    {
+      "id": "p8",
+      "name": "同事08",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    },
+    {
+      "id": "p9",
+      "name": "同事09",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    },
+    {
+      "id": "p10",
+      "name": "同事10",
+      "allowed_options": [
+        "classic",
+        "mild",
+        "coupon-classic"
+      ],
+      "required_tags": []
+    }
+  ],
+  "max_nodes": 200000
+}
