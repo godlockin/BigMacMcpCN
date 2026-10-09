@@ -1,6 +1,6 @@
 # BigMacMcpCN · 团餐变更决策台
 
-**新增 Mac 本机真实点餐模拟器**：独立网页界面，连接本人 Token，搜索真实门店、读取默认套餐组成、准备核价候选、重算人员变更，并进行官方整单核价。双击 `start_simulator.command`，或运行 `python3 simulator.py --token-stdin`。完整使用和实测边界见 [LIVE_WORKBENCH.md](LIVE_WORKBENCH.md)。离线演示仍可按下面方式无 Token 使用。
+**新增 Mac 本机真实点餐模拟器**：独立网页界面，连接本人 Token，查看积分与卡包、搜索真实门店、读取默认套餐组成、准备核价候选、重算人员变更，并进行官方整单核价。当前接口未提供麦金卡持卡状态，显示无法确认。双击 `start_simulator.command`，或运行 `python3 simulator.py --token-stdin`。完整使用和实测边界见 [LIVE_WORKBENCH.md](LIVE_WORKBENCH.md)。离线演示仍可按下面方式无 Token 使用。
 
 **有人变卦，不必整桌重来。**
 

@@ -134,6 +134,54 @@ class LiveWorkbench:
             return {'connected': False}
         if not self.verified:
             raise LiveError('请先验证账号连接。')
+        if action == 'account':
+            profile: dict = {
+                'captured_at': datetime.now(timezone.utc).isoformat(),
+                'membership': {'status': 'unknown', 'message': '当前官方工具未提供麦金卡持卡状态。券名称、菜单优惠或卡包为空都不能证明是否持卡。'},
+                'points': None, 'coupons': [], 'coupon_total': None,
+                'coupons_complete': False, 'errors': {}}
+            try:
+                data = object_value(response_data(self.invoke('query-my-account', {})), 'account')
+                fields = ['availablePoint', 'accumulativePoint', 'frozenPoint',
+                          'currentMouthExpirePoint', 'nextMouthExpirePoint', 'usedPoint', 'expiredPoint']
+                # Points can be decimal strings; never round to integer or assume missing = 0.
+                profile['points'] = {k: str(data[k]) if data.get(k) is not None else None for k in fields}
+            except (LiveError, InputError, ValueError, TypeError):
+                profile['errors']['points'] = '积分读取失败；未将失败或缺失数据显示为 0。'
+            try:
+                total_pages = 1
+                seen: set[str] = set()
+                for page in range(1, 6):
+                    data = object_value(response_data(self.invoke('query-my-coupons', {
+                        'page': str(page), 'pageSize': '200'})), 'coupons')
+                    total_pages = integer(data.get('totalPages'), 'totalPages', 0, 100000)
+                    profile['coupon_total'] = integer(data.get('totalCount'), 'totalCount', 0, 100000)
+                    rows = data.get('coupons')
+                    if not isinstance(rows, list):
+                        raise LiveError('卡包格式不匹配。')
+                    for raw in rows:
+                        coupon = object_value(raw, 'coupon')
+                        identity = text(coupon.get('id'), 'coupon id')
+                        if identity in seen:
+                            continue
+                        seen.add(identity)
+                        tags = coupon.get('tags', [])
+                        profile['coupons'].append({
+                            'title': text(coupon.get('title'), 'coupon title'),
+                            'subtitle': str(coupon.get('subtitle', '')),
+                            'enable': coupon.get('enable') == 1,
+                            'time': str(coupon.get('datetimeText', '')),
+                            'start_date': str(coupon.get('tradeStartDate', '')),
+                            'end_date': str(coupon.get('tradeEndDate', '')),
+                            'tags': [str(t.get('label', '')) for t in tags if isinstance(t, dict)] if isinstance(tags, list) else []})
+                    if page >= total_pages:
+                        profile['coupons_complete'] = len(seen) == profile['coupon_total']
+                        break
+                if not profile['coupons_complete']:
+                    profile['errors']['coupons'] = '卡包未完整读取（最多查询 5 页），当前列表仅为部分结果。'
+            except (LiveError, InputError, ValueError, TypeError):
+                profile['errors']['coupons'] = '卡包读取失败或不完整，不代表账号没有优惠券。'
+            return {'account': profile}
         if action == 'stores':
             data = response_data(self.invoke('query-nearby-stores', {
                 'beType': 1, 'searchType': 2,

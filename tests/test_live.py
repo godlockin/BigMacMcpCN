@@ -153,3 +153,55 @@ def test_http_secret_and_host_gates():
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+class FakeAccount(FakeOfficial):
+    def __call__(self, token, name, args):
+        if name == 'query-my-account':
+            return {'code': 200, 'data': {'accountId': 'private-account-id', 'availablePoint': '127.5',
+                    'currentMouthExpirePoint': '8.4', 'nextMouthExpirePoint': '0'}}
+        if name == 'query-my-coupons':
+            page = int(args['page'])
+            return {'code': 200, 'data': {'coupons': [{'id': f'private-coupon-{page}', 'code': 'private-code',
+                    'title': '麦金卡专享券', 'enable': 1, 'tags': []}], 'totalCount': 2, 'totalPages': 2}}
+        return super().__call__(token, name, args)
+
+
+def test_account_keeps_decimal_points_and_does_not_infer_membership():
+    state = LiveWorkbench(FakeAccount(), 'test-only-credential')
+    state.dispatch('connect', {})
+    result = state.dispatch('account', {})['account']
+    assert result['points']['availablePoint'] == '127.5'
+    assert result['points']['currentMouthExpirePoint'] == '8.4'
+    assert result['points']['frozenPoint'] is None
+    assert result['membership']['status'] == 'unknown'
+    assert result['coupon_total'] == 2 and len(result['coupons']) == 2 and result['coupons_complete']
+    assert 'private-' not in json.dumps(result)
+
+
+def test_account_partial_failure_is_not_zero_or_no_coupons():
+    class BrokenPoints(FakeAccount):
+        def __call__(self, token, name, args):
+            if name == 'query-my-account':
+                raise LiveError('Failed')
+            return super().__call__(token, name, args)
+    state = LiveWorkbench(BrokenPoints(), 'test-only-credential')
+    state.dispatch('connect', {})
+    result = state.dispatch('account', {})['account']
+    assert result['points'] is None and 'points' in result['errors']
+    assert result['coupons_complete'] and result['coupon_total'] == 2
+
+
+def test_account_pagination_cap_reports_partial():
+    class ManyPages(FakeAccount):
+        def __call__(self, token, name, args):
+            data = super().__call__(token, name, args)
+            if name == 'query-my-coupons':
+                data['data']['totalCount'] = 6
+                data['data']['totalPages'] = 6
+            return data
+    state = LiveWorkbench(ManyPages(), 'test-only-credential')
+    state.dispatch('connect', {})
+    result = state.dispatch('account', {})['account']
+    assert len(result['coupons']) == 5 and not result['coupons_complete']
+    assert 'coupons' in result['errors']
