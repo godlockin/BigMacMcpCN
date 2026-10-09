@@ -31,7 +31,7 @@ class OrderSupply(FakeSupply):
             return {'code': 200, 'data': {'orderId': 'synthetic-order', 'orderStatus': '2', 'mobilePhone': 'private-phone'}}
         result = super().__call__(token, name, args)
         if name == 'calculate-price':
-            result['data']['takeWayList'] = [{'code': 'pickup', 'name': '到店取餐'}]
+            result['data']['takeWayList'] = [{'code': 'pickup', 'title': '到店取餐', 'subtitle': '柜台领取'}]
         return result
 
 
@@ -46,6 +46,7 @@ def ready(tmp_path, unresolved=None):
     m.normalize({'context_id': cid, 'expected_revision': 0, 'intent': intent(budget_cents=None, unresolved=unresolved or [])})
     result = m.plan({'context_id': cid, 'revision': 1})
     plan = result['plans'][0]
+    assert plan['take_way_choices'][0]['name'] == '到店取餐'
     return m, supply, {'context_id': cid, 'plan_id': plan['plan_id'], 'authorized': True,
                        'request_key': 'request-one', 'max_cash_cents': plan['cash_cents'], 'take_way_code': 'pickup'}
 

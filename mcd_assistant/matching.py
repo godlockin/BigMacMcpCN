@@ -661,8 +661,7 @@ class Matcher:
                  'coupon_application_status': 'official_cart_accepted_not_individual_redemption_proof',
                  'membership_applied': 'unknown', 'activity_count': None, 'points_spent': 0,
                  'discount_cents': quote.get('discount'), 'allocation': allocation, 'meal_allocation': roots,
-                 'take_way_choices': [{'code': w['code'], 'name': w.get('name', '')} for w in quote.get('takeWayList', [])
-                                      if isinstance(w, dict) and isinstance(w.get('code'), str)],
+                 'take_way_choices': self.take_way_choices(quote),
                  'memory_fit_score': score, 'memory_reasons': memory_reasons,
                  'items': [self.public_variant(v) for v in chosen], 'extra_food_units': excess,
                  'captured_at': datetime.fromtimestamp(self.clock(), SHANGHAI).isoformat(),
@@ -722,6 +721,14 @@ class Matcher:
     def public_plan(plan: dict) -> dict:
         return {k: v for k, v in plan.items() if k != 'variants_private'}
 
+    @staticmethod
+    def take_way_choices(quote: dict) -> list[dict]:
+        ways = quote.get('takeWayList')
+        if not isinstance(ways, list):
+            return []
+        return [{'code': w['code'], 'name': w.get('title', w.get('name', '')), 'subtitle': w.get('subtitle', '')}
+                for w in ways if isinstance(w, dict) and isinstance(w.get('code'), str)]
+
     def recheck(self, payload: object) -> dict:
         row = object_value(payload, 'recheck')
         self.check_context(text(row.get('context_id'), 'context id'))
@@ -731,8 +738,7 @@ class Matcher:
         old = self.plans[identity]
         quote = self.official_quote(old['store']['store_code'], old['variants_private'])
         new = {**old, 'cash_cents': quote['price'], 'within_budget': self.intent.budget_cents is None or quote['price'] <= self.intent.budget_cents,
-               'take_way_choices': [{'code': w['code'], 'name': w.get('name', '')} for w in quote.get('takeWayList', [])
-                                    if isinstance(w, dict) and isinstance(w.get('code'), str)],
+               'take_way_choices': self.take_way_choices(quote),
                'captured_at': datetime.fromtimestamp(self.clock(), SHANGHAI).isoformat()}
         self.plans[identity] = new
         return {'plan': self.public_plan(new), 'price_delta_cents': quote['price'] - old['cash_cents'],
