@@ -4,7 +4,7 @@
 
 ## 项目简介
 
-McDeal 是一个麦当劳个人助理，它能实时联通麦当劳 MCP Server 的 35 个工具端点，根据用户的自然语言需求（如"10份饭，素食2份，汉堡加量4份，预算500"），自动完成：
+BigMacMcpCN 是一个麦当劳个人助理，它能实时联通麦当劳 MCP Server 的 35 个工具端点，根据用户的自然语言需求（如"10份饭，素食2份，汉堡加量4份，预算500"），自动完成：
 
 1. **需求解析** — 将自然语言解析为结构化订单（人数、预算、餐次、特殊要求）
 2. **数据聚合** — 并行获取门店菜单、用户优惠券、可领优惠券、积分账户、积分商城、营养成分
@@ -35,8 +35,8 @@ McDeal 是一个麦当劳个人助理，它能实时联通麦当劳 MCP Server �
 ### 安装
 
 ```bash
-git clone https://github.com/your-username/mcd-deal-composer.git
-cd mcd-deal-composer
+git clone https://github.com/godlockin/BigMacMcpCN.git
+cd BigMacMcpCN
 
 # 创建虚拟环境
 python3 -m venv .venv
@@ -133,7 +133,7 @@ python run_mcp_server.py
 ## 项目结构
 
 ```
-mcd-deal-composer/
+BigMacMcpCN/
 ├── README.md                    # 项目介绍
 ├── CONTEST_DECLARATION.md       # 参赛声明（官方文件，不可修改）
 ├── MCP_INTEGRATION.md           # MCP 集成说明
