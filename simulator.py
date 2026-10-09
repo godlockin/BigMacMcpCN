@@ -9,6 +9,8 @@ from pathlib import Path
 
 from mcd_assistant.live import LiveWorkbench, OfficialTransport
 from mcd_assistant.local_http import make_http_server
+from mcd_assistant.matching import Matcher
+from mcd_assistant.weather import Weather
 
 
 def main() -> int:
@@ -23,9 +25,16 @@ def main() -> int:
     logging.disable(logging.CRITICAL)
     token = getpass.getpass('MCP Token（隐藏输入）：') if args.token_stdin else os.environ.get('MCD_MCP_TOKEN', '')
     state = LiveWorkbench(OfficialTransport(), token)
+    matcher = Matcher(state, Weather())
+    def dispatch(action: str, payload: object) -> object:
+        if action.startswith('match-'):
+            return matcher.dispatch(action, payload)
+        if action in {'connect', 'logout', 'stores'}:
+            matcher.clear()
+        return state.dispatch(action, payload)
     token = ''
     server = make_http_server(Path(__file__).parent / 'web' / 'simulator.html',
-                              {'city': '上海', 'keyword': '七宝地铁站'}, state.dispatch, args.port)
+                              {'city': '上海', 'keyword': '七宝地铁站'}, dispatch, args.port)
     print(f'本机点餐模拟器 http://127.0.0.1:{server.server_port} （Ctrl+C 退出）', flush=True)
     try:
         server.serve_forever()

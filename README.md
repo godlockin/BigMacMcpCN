@@ -1,3 +1,11 @@
+# BigMacMcpCN · 智能订单撮合 MCP + Skill
+
+v3：宿主大模型理解复杂口述和连续修正；工具结合账号、目标位置、北京时间、天气/距离、真实菜单、套餐子项与门店券，动态组合并官方整单核价，返回推荐方案 A / B。不绑定模型 API。
+
+接入与能力边界：[MATCHING.md](MATCHING.md) · [可移植 Skill](skills/mcd-order-match/SKILL.md) · [MCP 配置](mcp-config.example.json)。模型负责语义与证据审查，工具负责结构校验和有界撮合；不承诺全菜单最低价或最快出餐。小程序登录不等于 MCP 授权。
+
+以下保留 v2 最少改餐决策器及历史能力说明。新产品入口优先使用 `run_matching_server.py`；旧增强服务器尚未逐工具验证，不作为 v3 撮合证据。
+
 # BigMacMcpCN · 团餐变更决策台
 
 **新增 Mac 本机真实点餐模拟器**：独立网页界面，连接本人 Token，查看积分与卡包、搜索真实门店、读取默认套餐组成、准备核价候选、重算人员变更，并进行官方整单核价。当前接口未提供麦金卡持卡状态，显示无法确认。双击 `start_simulator.command`，或运行 `python3 simulator.py --token-stdin`。完整使用和实测边界见 [LIVE_WORKBENCH.md](LIVE_WORKBENCH.md)。离线演示仍可按下面方式无 Token 使用。

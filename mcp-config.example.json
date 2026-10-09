@@ -7,6 +7,13 @@
         "Authorization": "Bearer ${MCD_MCP_TOKEN}"
       }
     },
+    "mcd-order-matcher": {
+      "command": "${PROJECT_ROOT}/.venv/bin/python",
+      "args": ["${PROJECT_ROOT}/run_matching_server.py"],
+      "env": {
+        "MCD_MCP_TOKEN": "${MCD_MCP_TOKEN}"
+      }
+    },
     "mcd-deal-composer": {
       "command": "python3",
       "args": ["${PROJECT_ROOT}/run_mcp_server.py"],

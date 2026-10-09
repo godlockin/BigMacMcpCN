@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
 from typing import Callable
+from pydantic import ValidationError
 
 from .decision import InputError
 from .live import LiveError
@@ -62,6 +63,8 @@ def make_http_server(page_path: Path, initial: object, dispatch: Callable[[str, 
                 payload = json.loads(self.rfile.read(length))
                 with guard:
                     self.reply(200, dispatch(self.path[5:], payload))
+            except ValidationError:
+                self.reply(400, {'error': '需求结构无效：检查原文引用、人数、类型和范围。未回显个人口述。'})
             except (InputError, ValueError, UnicodeError) as exc:
                 self.reply(400, {'error': str(exc)})
             except LiveError as exc:
