@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# Config with secrets
+config.json
+.mcp.json
+mcp.json
+
+# Data (generated reports)
+data/*.html
+data/*.json
+data/*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log

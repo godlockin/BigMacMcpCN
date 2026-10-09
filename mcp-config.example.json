@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "mcd-mcp": {
+      "type": "streamablehttp",
+      "url": "https://mcp.mcd.cn",
+      "headers": {
+        "Authorization": "Bearer ${MCD_MCP_TOKEN}"
+      }
+    },
+    "mcd-deal-composer": {
+      "command": "python3",
+      "args": ["${PROJECT_ROOT}/run_mcp_server.py"],
+      "env": {
+        "MCD_MCP_TOKEN": "${MCD_MCP_TOKEN}",
+        "MCD_CONFIG_PATH": "${PROJECT_ROOT}/config.json"
+      }
+    }
+  }
+}
