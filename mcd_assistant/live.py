@@ -87,6 +87,7 @@ class LiveWorkbench:
         self.call = call
         self.token = token
         self.verified = False
+        self.account_identity: str | None = None
         self.stores: dict[str, dict] = {}
         self.store: dict | None = None
         self.menu: dict[str, dict] = {}
@@ -124,11 +125,13 @@ class LiveWorkbench:
             if not isinstance(tools, list) or not {'query-nearby-stores', 'query-meals', 'query-meal-detail', 'calculate-price'} <= set(tools):
                 raise LiveError('服务缺少必需工具。')
             self.token, self.verified = token, True
+            self.account_identity = None
             self.stores = {}
             self.reset_plan()
             return {'connected': True, 'tool_count': len(tools)}
         if action == 'logout':
             self.token, self.verified = '', False
+            self.account_identity = None
             self.stores = {}
             self.reset_plan()
             return {'connected': False}
@@ -142,11 +145,14 @@ class LiveWorkbench:
                 'coupons_complete': False, 'errors': {}}
             try:
                 data = object_value(response_data(self.invoke('query-my-account', {})), 'account')
+                identity = data.get('accountId')
+                self.account_identity = identity if isinstance(identity, str) and identity else None
                 fields = ['availablePoint', 'accumulativePoint', 'frozenPoint',
                           'currentMouthExpirePoint', 'nextMouthExpirePoint', 'usedPoint', 'expiredPoint']
                 # Points can be decimal strings; never round to integer or assume missing = 0.
                 profile['points'] = {k: str(data[k]) if data.get(k) is not None else None for k in fields}
             except (LiveError, InputError, ValueError, TypeError):
+                self.account_identity = None
                 profile['errors']['points'] = '积分读取失败；未将失败或缺失数据显示为 0。'
             try:
                 total_pages = 1

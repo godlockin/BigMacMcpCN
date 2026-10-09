@@ -110,12 +110,14 @@ def test_matching_uses_augmenting_path_for_overlapping_demand_sets():
     assert ok and next(x for x in allocation if x['requirement_id'] == 'fixed')['food_code'] == 'tea'
 
 
-def test_conflicts_block_price_calls_and_revisions_invalidate_old_orders():
+def test_conflicts_allow_conditional_quotes_and_revisions_invalidate_old_orders():
     m, cid, supply, _ = setup()
     m.normalize({'context_id': cid, 'expected_revision': 0, 'intent': intent(unresolved=['不辣缺少官方依据'])})
     before = len(supply.calls)
-    assert m.plan({'context_id': cid, 'revision': 1})['status'] == 'needs_clarification'
-    assert len(supply.calls) == before
+    result = m.plan({'context_id': cid, 'revision': 1})
+    assert result['status'] == 'conditional_candidates'
+    assert result['plans'] and all(not p['can_create_order'] for p in result['plans'])
+    assert len(supply.calls) > before
     with pytest.raises(InputError):
         m.normalize({'context_id': cid, 'expected_revision': 0, 'intent': intent()})
     m.normalize({'context_id': cid, 'expected_revision': 1, 'intent': intent()})
@@ -219,7 +221,8 @@ def test_model_neutral_stdio_protocol_and_structured_error_without_credentials()
             async with ClientSession(*streams) as session:
                 await session.initialize()
                 tools = await session.list_tools()
-                assert len(tools.tools) == 7
+                assert len(tools.tools) == 13
+                assert next(t for t in tools.tools if t.name == 'mcd-match-create').annotations.read_only_hint is False
                 response = await session.call_tool('mcd-match-state', {})
                 assert not response.is_error and response.structured_content['revision'] == 0
                 response = await session.call_tool('mcd-match-context', {'city': '上海', 'keyword': '测试'})

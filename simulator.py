@@ -10,6 +10,7 @@ from pathlib import Path
 from mcd_assistant.live import LiveWorkbench, OfficialTransport
 from mcd_assistant.local_http import make_http_server
 from mcd_assistant.matching import Matcher
+from mcd_assistant.preference_memory import PreferenceMemory, default_memory_path
 from mcd_assistant.weather import Weather
 
 
@@ -25,7 +26,7 @@ def main() -> int:
     logging.disable(logging.CRITICAL)
     token = getpass.getpass('MCP Token（隐藏输入）：') if args.token_stdin else os.environ.get('MCD_MCP_TOKEN', '')
     state = LiveWorkbench(OfficialTransport(), token)
-    matcher = Matcher(state, Weather())
+    matcher = Matcher(state, Weather(), memory=PreferenceMemory(default_memory_path()))
     def dispatch(action: str, payload: object) -> object:
         if action.startswith('match-'):
             return matcher.dispatch(action, payload)
@@ -43,6 +44,7 @@ def main() -> int:
     finally:
         server.server_close()
         state.dispatch('logout', {})
+        matcher.memory.close()
     return 0
 
 

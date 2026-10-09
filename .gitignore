@@ -17,6 +17,7 @@ mcp.json
 data/*.html
 data/*.json
 data/*.db
+data/*.db-*
 
 # IDE
 .idea/
