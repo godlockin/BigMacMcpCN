@@ -43,6 +43,18 @@ class ProductDemand(Demand):
     pass
 
 
+class Interpretation(StrictModel):
+    """Host-model arbitration of ambiguous language, distinct from fulfilment evidence."""
+    id: str = Field(min_length=1, max_length=64)
+    person: str = Field(min_length=1, max_length=64)
+    source_quote: str = Field(min_length=1, max_length=500)
+    selected_meaning: str = Field(min_length=1, max_length=300)
+    alternative_meanings: list[str] = Field(default_factory=list, max_length=8)
+    reason: str = Field(min_length=1, max_length=500)
+    basis: Literal['contextual', 'explicit'] = 'contextual'
+    safety_critical: bool = False
+
+
 class Intent(StrictModel):
     transcript: str = Field(min_length=1, max_length=12000)
     summary: str = Field(min_length=1, max_length=2000)
@@ -52,6 +64,7 @@ class Intent(StrictModel):
     product_requirements: list[ProductDemand] = Field(default_factory=list, max_length=16)
     participants: list[str] = Field(default_factory=list, max_length=16)
     assumptions: list[str] = Field(default_factory=list, max_length=32)
+    interpretations: list[Interpretation] = Field(default_factory=list, max_length=32)
     excluded_codes: list[str] = Field(default_factory=list, max_length=128)
     unresolved: list[str] = Field(default_factory=list, max_length=32)
     preferences: list[str] = Field(default_factory=list, max_length=32)
@@ -80,6 +93,15 @@ class Intent(StrictModel):
         for r in all_requirements:
             if r.source_quote not in self.transcript:
                 raise ValueError('需求必须引用口述中的原文')
+        if len({i.id for i in self.interpretations}) != len(self.interpretations):
+            raise ValueError('语义解释 ID 不能重复')
+        for interpretation in self.interpretations:
+            if interpretation.source_quote not in self.transcript:
+                raise ValueError('语义解释必须引用口述原文')
+            if self.participants and interpretation.person not in self.participants:
+                raise ValueError('语义解释必须属于当前参与者')
+            if interpretation.safety_critical and interpretation.basis == 'contextual' and not self.unresolved:
+                raise ValueError('安全关键条件的模糊解释不能作为已满足需求')
         return self
 
 
@@ -536,7 +558,8 @@ class Matcher:
         changes = []
         for key, label in [('people','人数'),('participants','同行者'),('budget_cents','预算'),
                            ('priority','优先目标'),('requirements','食品需求'),('product_requirements','整套商品需求'),
-                           ('excluded_codes','禁止餐品'),('unresolved','硬条件'),('assumptions','默认仲裁')]:
+                           ('excluded_codes','禁止餐品'),('unresolved','硬条件'),('assumptions','默认仲裁'),
+                           ('interpretations','语义解释')]:
             if before.get(key) != after.get(key):
                 changes.append(label + '已更新')
         return changes or ['需求未改变']
@@ -655,6 +678,7 @@ class Matcher:
                  'cash_cents': quote['price'], 'within_budget': intent.budget_cents is None or quote['price'] <= intent.budget_cents,
                  'budget_cents': intent.budget_cents, 'conditional': bool(intent.unresolved),
                  'execution_blocks': intent.unresolved, 'assumptions': intent.assumptions,
+                 'interpretations': [i.model_dump() for i in intent.interpretations],
                  'can_create_order': not intent.unresolved and store['open_at_target'] is True,
                  'combo_count': sum(v['combo'] for v in chosen), 'single_count': sum(not v['combo'] for v in chosen),
                  'coupon_count_submitted': len(coupons), 'coupon_titles_submitted': coupons,
@@ -702,6 +726,7 @@ class Matcher:
         result = {'status': ('conditional_candidates' if intent.unresolved else 'quoted_candidates') if selected else 'no_verified_candidate',
                 'revision': self.revision, 'summary': intent.summary,
                 'conversation_id': self.conversation_id, 'assumptions': intent.assumptions,
+                'interpretations': [i.model_dump() for i in intent.interpretations],
                 'execution_blocks': intent.unresolved, 'scenario': self.scenario(),
                 'plans': [self.public_plan(p) for p in selected],
                 'plan_b_unavailable': len(selected) < 2,

@@ -38,6 +38,23 @@
 
 后续用 match-state 的 revision 提交完整新 intent；地点／时间改变重取 context。match-memory facts 使用 person/key/value/source/duration/source_quote/confidence，引用当前完整口述。match-conversation new/resume 只恢复语义，历史报价不可执行。
 
+模糊语义用 `interpretations`，例如：
+
+```json
+{
+  "id": "sauce",
+  "person": "p1",
+  "source_quote": "不要任何调料",
+  "selected_meaning": "汉堡不加酱",
+  "alternative_meanings": ["肉饼也不能有盐或腌料"],
+  "reason": "结合本次汉堡和减脂语境，采用常见点餐改配含义",
+  "basis": "contextual",
+  "safety_critical": false
+}
+```
+
+这是宿主的语义仲裁记录，不是工具自动推断或官方改配证据。source_quote 必须在 transcript 中，人物须属于参与者；安全关键条件的 contextual 解释不能没有 unresolved。用户明确修正后 basis=explicit；未验证去酱／去菜能力继续阻止创建，但不机械升级成最严格字面义。
+
 用户选中后 match-select；明确下单后 match-create 传 context_id、plan_id、authorized=true、稳定 request_key、max_cash_cents 和最新报价的 take_way_code。未知结果禁止换键重试，match-order-status 用 request_key 查询。match-feedback 支持 rejected/satisfied/disliked/cancelled，不能证明支付。
 
 天气只在明确坐标时查询，失败 status=unknown；不能省略未知提示。距离基于位置关键词，非设备定位。报价时间/预约时间、营业时段及未知预约可用性都应向用户说明。

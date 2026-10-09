@@ -91,6 +91,7 @@ api('status').then(d=>{if(d.credential_loaded)$('connection').textContent='启�
 
 function syncIntentFields(intent){$('matchPeople').value=intent.people;$('matchBudget').value=intent.budget_cents===null||intent.budget_cents===undefined?'':intent.budget_cents/100;$('matchPriority').value=intent.priority||'price';$('matchUnresolved').value=(intent.unresolved||[]).join('\n')}
 function decoratePlan(card,p){
+  for(const i of p.interpretations||[]){card.append(node('p',`${i.person}：${i.basis==='explicit'?'明确要求':'先按语境理解为'}「${i.selected_meaning}」。${i.reason}`));if(i.alternative_meanings.length)card.append(node('p',`原话也可能指：${i.alternative_meanings.join('；')}。可继续一句话修正。`,'muted'))}
   for(const r of p.reasons||[])card.append(node('p',r));
   for(const a of p.assumptions||[])card.append(node('p','默认理解：'+a));
   for(const a of p.meal_allocation||[])card.append(node('div',`${a.person} → 整份 ${a.product_name}`));
